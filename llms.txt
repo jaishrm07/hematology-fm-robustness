@@ -1,0 +1,182 @@
+# Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?
+
+Authors:  Jai Kumar Sharma (Virginia Tech, jaisharma@vt.edu, corresponding); Peeyush Tapadiya (Accenture)
+Venue:    HemaRAI 2026 Workshop - Toward Reliable AI in Hematology, a MICCAI 2026 satellite event
+Status:   Peer-reviewed workshop paper, accepted as an ORAL. Springer LNCS proceedings forthcoming.
+Date:     2026
+License:  CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+Keywords: foundation models, domain shift, robustness, calibration, hematology, benchmark,
+          white blood cell classification, acquisition shift, test-time adaptation
+
+## Links
+
+- Project page: https://jaishrm07.github.io/hematology-fm-robustness/
+- Paper PDF:    https://jaishrm07.github.io/hematology-fm-robustness/static/paper.pdf
+- Workshop:     https://openreview.net/group?id=MICCAI.org/2026/Workshop/HemaRAI
+- Author (Google Scholar): https://scholar.google.com/citations?user=IRdgHHsAAAAJ
+- arXiv:        not yet posted
+- Code:         not yet released
+
+## TL;DR
+
+In-domain accuracy and in-domain confidence both fail to predict cross-scanner reliability for
+frozen hematology foundation models. Fifteen frozen encoders sit at 0.98-0.997 macro-F1 on the
+source scanner; move to a new one and macro-F1 drops 34-72%, the ranking re-orders, and expected
+calibration error goes from 0.004 to 0.35. Label-free test-time adaptation looks safe on balanced
+test sets and fails under real blood-differential class priors. We add CBR, a training-free
+class-balanced re-standardization that is positive in all 18 evaluated target-prior scenario means.
+
+## Abstract
+
+Frozen hematology foundation-model (FM) embeddings reach near-saturated in-domain white-blood-cell
+(WBC) accuracy, but clinical deployment demands reliability across scanners, sites, stains and
+preparation pipelines. We audit 15 frozen encoders (hematology, pathology, and general vision
+encoders) across four public single-cell acquisition domains along two axes: accuracy robustness
+and calibration. In-domain linear-probe macro-F1 is saturated (0.98-0.997), yet cross-dataset
+macro-F1 drops 34-72% and rankings re-order: DinoBloom-L, the in-domain best, falls to 10th of 15
+on the most-shifted target (MLL23) at the benchmark's shared 224-px input, while RedDino and
+several general and pathology encoders outrank it. Rank transfer is probe-dependent: 1-NN
+retrieval is more stable on average than a source-fitted linear head (median rho 0.65 vs 0.45),
+but neither clean-domain probe universally predicts target robustness. Calibration also collapses:
+source-trained probes are nearly calibrated in-domain (Expected Calibration Error [ECE] 0.004) but
+become confidently wrong off-domain (ECE 0.35), and source-fitted temperature scaling transfers
+poorly. We further audit pretraining exposure and identify MLL23 as corresponding to DinoBloom's
+internal cohort; because the only DinoBloom-held-out dataset is also our source domain, this
+benchmark cannot isolate exposure from scanner-associated distribution shift. Finally, label-free
+adaptation and marginal-entropy-based model selection appear safe under balanced evaluation but
+fail under realistic WBC class-prior shift. Class-Balanced Re-standardization (CBR), a
+training-free pseudo-label-balanced feature normalization, improves all evaluated target-prior
+scenario means and partially improves calibration, although encoder-level exceptions and residual
+miscalibration remain. These results argue that hematology FM benchmarks must jointly audit
+accuracy, calibration, exposure, and class-prior robustness.
+
+## Method
+
+Each encoder is frozen and its CLS/pooled features extracted once. Source-domain standardization
+and an L2-regularized logistic probe (plus a 1-NN probe) are fit on the source domain, then
+applied zero-shot to target acquisition domains; the target is never touched at training time.
+
+- Source: Acevedo (PBC) via BloodMNIST@224, 10,298 WBC images, CellaVision DM96 scanner.
+- Targets: MLL23/Metafer, Matek-LMU/M8, Raabin (smartphone + Olympus).
+- 15 frozen encoders: DinoBloom-S/B/L and RedDino (hematology FMs); Phikon and Lunit-DINO
+  (pathology FMs); DINOv2-S/B/L, EVA-02, CLIP-B/16, CLIP-L/14, BiomedCLIP (general SSL/VLM);
+  ImageNet-supervised ViT-B and ResNet-50. A supervised ResNet-18 trained from scratch is a
+  non-frozen reference. All encoders run at 224x224, with a 224-vs-518 resolution check.
+- Fixed five-class WBC intersection; full source x target matrix including reverse directions;
+  five source splits; bootstrap 95% confidence intervals.
+- Metrics: macro-F1 (primary), Spearman rank correlation between in-domain and target rankings,
+  effective robustness, relative gap, per-class recall; ECE, adaptive-ECE, NLL and Brier for
+  calibration.
+- Label-shift evaluation: every label-free method is evaluated on the balanced target AND on
+  targets resampled to six class priors (including peripheral-blood-like and neutrophil-heavy),
+  in one canonical experiment of 15 encoders x 5 source seeds x 3 targets x 6 priors x 25 draws.
+- CBR (Class-Balanced Re-standardization): re-standardize target features using the mean of the
+  per-pseudo-class means and a pooled within-class standard deviation, instead of the raw batch
+  statistics, so the estimate stops tracking the majority class. Label-free, training-free,
+  single-batch. Empty pseudo-classes are dropped; singletons contribute to the mean only; a full
+  collapse falls back to the source standard deviation. Batches of >= 32 cells recommended.
+
+## Findings
+
+1. RANK RE-ORDERING. DinoBloom-L is the in-domain best and lands 10th of 15 on MLL23 (macro-F1
+   0.552), 0.15 behind RedDino (0.704). Phikon falls from 4th in-domain to 14th. Paired-bootstrap
+   95% CIs for the RedDino-DinoBloom-L, DinoBloom-S-DinoBloom-L and Lunit-Phikon gaps exclude zero.
+   Specialization does not predict robustness: the two pathology FMs land at 0.609 and 0.410.
+2. WEAK RANK TRANSFER FROM EVERY SOURCE. Spearman rho(in-domain rank, target rank) falls to 0.27
+   on the most-shifted target. Across all 12 source-target pairs rho stays in [0.20, 0.68], median
+   0.45, and the in-domain-best encoder is dethroned on the target in 8 of 12 pairs.
+3. PROBE DEPENDENCE. 1-NN transfers ranks better on average than a source-fitted linear head
+   (median rho 0.65 vs 0.45), but is not universally reliable (rho 0.34 on Acevedo->Raabin, below
+   the linear probe's 0.43). Across eight source-only heads (logistic regression at C from 1e-4 to
+   1e2, linear SVM, nearest-centroid, cosine centroid, 1-NN), every linear head reaches rho
+   0.13-0.38 on MLL23 while local-geometry heads reach 0.61-0.77.
+4. CALIBRATION COLLAPSE. In-domain ECE 0.004 and NLL 0.031; off-domain ECE 0.348 and NLL 3.20
+   (about 80x worse). A temperature fitted on held-out source data barely helps (ECE 0.348 ->
+   0.315) because the source probe is already calibrated (fitted T is about 1). Oracle target
+   temperature scaling reaches ECE 0.070 but needs target labels. Few-shot per-scanner
+   recalibration recovers most of the gap: ECE 0.165 at K=4, 0.100 at K=16, 0.088 at K=32, against
+   an oracle 0.074.
+5. EXPOSURE AMBIGUITY. MLL23 corresponds to DinoBloom's internal cohort (the same 41,906-image
+   Munich Leukemia Laboratory dataset); Matek and Raabin are also in DinoBloom's pretraining
+   corpus. Acevedo, our source, is its only held-out dataset, so there is no leakage-free target
+   and DinoBloom's target-side numbers measure transfer to in-pretraining domains. Exposure status
+   is reported rather than assumed; in the reverse direction DinoBloom transfers best to its
+   held-out Acevedo, which is inconsistent with simple leakage inflation but confounded with
+   Acevedo being an easier domain.
+6. CLASS-PRIOR FAILURE OF LABEL-FREE METHODS. Global target standardization (BN-adaptation) helps
+   on balanced and mild priors but hurts on realistic ones (-0.07 clinical peripheral-blood, -0.08
+   neutrophil-heavy; harmful in 6 of 18 scenarios). SHOT/IM: mean -0.029, harmful in 10/18. BBSE,
+   a label-shift estimator, hurts in all 18 (mean -0.035) because it corrects the label prior
+   rather than the feature-space scanner shift. Label-free model SELECTION fails the same way:
+   marginal prediction entropy looks oracle-like under balanced sampling and carries 0.25-0.37
+   selection regret under skewed priors.
+7. CBR. Positive in all 18 target x prior scenario means (mean +0.059, range [+0.007, +0.109],
+   hierarchical bootstrap CI [+0.046, +0.073]), recovering about 61% of a true-label oracle; the
+   balanced first-moment term drives the gain (+0.053 alone). Per encoder, mean gain is positive
+   for all 15 encoders but 29 of 270 encoder x scenario cells are negative (worst -0.090, mostly
+   DinoBloom under the most skewed priors), against 96/270 for global standardization and 149/270
+   for SHOT/IM. CBR partially improves calibration (ECE 0.348 -> 0.290 alone, -> 0.254 with source
+   temperature) but residual miscalibration remains far above in-domain.
+
+## Cross-dataset leaderboard (Table 1)
+
+Linear-probe macro-F1, mean over 5 seeds, source = Acevedo, sorted by MLL23.
+hema = hematology FM, path = pathology FM, IN = ImageNet-supervised.
+"MLL23 #" is the rank on the most-shifted target (1 = best of 15).
+
+  encoder                      Acevedo   Matek   MLL23   MLL23 #   Raabin
+  RedDino (hema)                 0.994   0.544   0.704         1    0.450
+  DinoBloom-S (hema)             0.995   0.613   0.671         2    0.341
+  DINOv2-B                       0.991   0.595   0.650         3    0.444
+  DINOv2-S                       0.988   0.505   0.634         4    0.248
+  Lunit-DINO (path)              0.995   0.409   0.609         5    0.288
+  DINOv2-L                       0.991   0.555   0.588         6    0.315
+  ViT-B (IN)                     0.993   0.616   0.571         7    0.439
+  CLIP-L/14                      0.986   0.557   0.568         8    0.290
+  DinoBloom-B (hema)             0.997   0.635   0.553         9    0.448
+  DinoBloom-L (hema)             0.997   0.648   0.552        10    0.385
+  BiomedCLIP                     0.980   0.410   0.526        11    0.280
+  EVA-02 (IN)                    0.991   0.486   0.486        12    0.378
+  ResNet-50 (IN)                 0.980   0.357   0.416        13    0.304
+  Phikon (path)                  0.995   0.448   0.410        14    0.265
+  CLIP-B/16                      0.981   0.387   0.386        15    0.337
+  Sup. ResNet-18 (scratch)       0.908   0.584   0.255         -    0.096
+
+DinoBloom-L is in-domain #1 by unrounded macro-F1 (rounds to a tie with DinoBloom-B). The
+supervised ResNet-18 is a non-frozen baseline, not part of the 15-encoder ranking.
+
+## Guidance
+
+- Do not select a frozen encoder on in-domain accuracy: it is saturated (all 15 within 0.017
+  macro-F1) and the ranking does not survive a scanner change.
+- Do not trust off-domain confidence, and do not expect a source-fitted temperature to transfer.
+  Recalibrate per scanner; 16-32 labelled target images recovers most of the calibration gap.
+- Evaluate test-time adaptation under the deployment class prior, not a balanced split.
+- If you re-standardize target features at test time, do it class-balanced (CBR), and validate it
+  for your encoder under skew before relying on it.
+- Report pretraining exposure explicitly; benchmarks that do not cannot separate memorization from
+  generalization.
+
+## Limitations
+
+- No leakage-free DinoBloom target: all three transfer targets are in DinoBloom's pretraining
+  corpus and its only held-out dataset is our source domain, so exposure and domain difficulty
+  remain confounded for that family.
+- Modest statistical power for any individual Spearman rho over 15 encoders; the paper relies on
+  CI-separated spreads and rank re-ordering, and describes the effect as scanner-ASSOCIATED
+  cross-dataset shift rather than isolating the scanner itself.
+- CBR is transductive and pseudo-label-dependent: it needs a batch of target cells at test time,
+  recovers about 61% of a true-label oracle, is noisy below 32 cells, and is negative in 29 of 270
+  encoder x scenario cells.
+- Scope: five WBC classes, one stain family per dataset, image-level (not patient-level) splits
+  because patient identifiers are not consistently available across these public datasets.
+
+## BibTeX
+
+@misc{sharma2026hematologyfm,
+  title        = {Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?},
+  author       = {Sharma, Jai Kumar and Tapadiya, Peeyush},
+  year         = {2026},
+  howpublished = {HemaRAI Workshop at MICCAI 2026},
+  note         = {Workshop oral}
+}

@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?</title>
+<link rel="canonical" href="https://jaishrm07.github.io/hematology-fm-robustness/">
+<link rel="alternate" type="text/plain" href="llms.txt" title="Plain-text summary for LLM crawlers">
+<meta name="description" content="Frozen hematology foundation models are near-perfect in-domain but re-rank under acquisition shift: the in-domain best (DinoBloom-L) falls to 10th of 15 on the most-shifted scanner, calibration collapses from ECE 0.004 to 0.35, and label-free adaptation fails under clinical class priors.">
+<meta name="keywords" content="foundation models, domain shift, robustness, calibration, hematology, benchmark, white blood cell classification, acquisition shift, test-time adaptation">
+<meta name="author" content="Jai Kumar Sharma">
+<meta name="author" content="Peeyush Tapadiya">
+<meta name="theme-color" content="#efece7">
+
+<!-- Google Scholar / Highwire Press citation metadata -->
+<meta name="citation_title" content="Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?">
+<meta name="citation_author" content="Sharma, Jai Kumar">
+<meta name="citation_author_institution" content="Virginia Tech">
+<meta name="citation_author_email" content="jaisharma@vt.edu">
+<meta name="citation_author" content="Tapadiya, Peeyush">
+<meta name="citation_author_institution" content="Accenture">
+<meta name="citation_publication_date" content="2026/08/09">
+<meta name="citation_conference_title" content="HemaRAI Workshop at MICCAI 2026">
+<meta name="citation_pdf_url" content="https://jaishrm07.github.io/hematology-fm-robustness/static/paper.pdf">
+<meta name="citation_abstract_html_url" content="https://jaishrm07.github.io/hematology-fm-robustness/">
+<meta name="citation_language" content="en">
+<meta name="citation_keywords" content="foundation models; domain shift; robustness; calibration; hematology; benchmark">
+
+<!-- Dublin Core -->
+<meta name="DC.title" content="Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?">
+<meta name="DC.creator" content="Sharma, Jai Kumar">
+<meta name="DC.creator" content="Tapadiya, Peeyush">
+<meta name="DC.date" content="2026-08-09">
+<meta name="DC.type" content="Text">
+<meta name="DC.rights" content="CC BY 4.0">
+
+<!-- Open Graph -->
+<meta property="og:type" content="article">
+<meta property="og:title" content="Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?">
+<meta property="og:description" content="Frozen hematology foundation models are near-perfect in-domain but re-rank under acquisition shift: the in-domain best falls to 10th of 15 on the most-shifted scanner, and calibration collapses off-domain.">
+<meta property="og:url" content="https://jaishrm07.github.io/hematology-fm-robustness/">
+<meta property="og:image" content="https://jaishrm07.github.io/hematology-fm-robustness/static/images/figA_rho_matrix.png">
+<meta property="og:image:alt" content="Heatmap of Spearman rank correlation between in-domain and cross-scanner encoder rankings, lowest on the most-shifted target MLL23.">
+<meta property="og:site_name" content="Hematology FM Robustness Audit">
+<meta property="article:published_time" content="2026-08-09">
+
+<!-- Twitter card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?">
+<meta name="twitter:description" content="In-domain macro-F1 0.98-0.997, yet the in-domain best encoder falls to 10th of 15 on a new scanner and ECE goes 0.004 to 0.35. HemaRAI @ MICCAI 2026 (Oral).">
+<meta name="twitter:image" content="https://jaishrm07.github.io/hematology-fm-robustness/static/images/figA_rho_matrix.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ScholarlyArticle",
+  "headline": "Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?",
+  "name": "Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "Jai Kumar Sharma",
+      "email": "jaisharma@vt.edu",
+      "affiliation": { "@type": "Organization", "name": "Virginia Tech" },
+      "sameAs": "https://scholar.google.com/citations?user=IRdgHHsAAAAJ"
+    },
+    {
+      "@type": "Person",
+      "name": "Peeyush Tapadiya",
+      "email": "peeyush.tapadiya@accenture.com",
+      "affiliation": { "@type": "Organization", "name": "Accenture" }
+    }
+  ],
+  "datePublished": "2026-08-09",
+  "inLanguage": "en",
+  "url": "https://jaishrm07.github.io/hematology-fm-robustness/",
+  "mainEntityOfPage": "https://jaishrm07.github.io/hematology-fm-robustness/",
+  "sameAs": [
+    "https://openreview.net/group?id=MICCAI.org/2026/Workshop/HemaRAI"
+  ],
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "copyrightYear": "2026",
+  "copyrightHolder": [
+    { "@type": "Person", "name": "Jai Kumar Sharma" },
+    { "@type": "Person", "name": "Peeyush Tapadiya" }
+  ],
+  "keywords": "foundation models, domain shift, robustness, calibration, hematology, benchmark",
+  "abstract": "Frozen hematology foundation-model (FM) embeddings reach near-saturated in-domain white-blood-cell (WBC) accuracy, but clinical deployment demands reliability across scanners, sites, stains and preparation pipelines. We audit 15 frozen encoders (hematology, pathology, and general vision encoders) across four public single-cell acquisition domains along two axes: accuracy robustness and calibration. In-domain linear-probe macro-F1 is saturated (0.98-0.997), yet cross-dataset macro-F1 drops 34-72% and rankings re-order: DinoBloom-L, the in-domain best, falls to 10th of 15 on the most-shifted target (MLL23) at the benchmark's shared 224-px input, while RedDino and several general and pathology encoders outrank it. Rank transfer is probe-dependent: 1-NN retrieval is more stable on average than a source-fitted linear head (median rho 0.65 vs 0.45), but neither clean-domain probe universally predicts target robustness. Calibration also collapses: source-trained probes are nearly calibrated in-domain (Expected Calibration Error 0.004) but become confidently wrong off-domain (ECE 0.35), and source-fitted temperature scaling transfers poorly. We further audit pretraining exposure and identify MLL23 as corresponding to DinoBloom's internal cohort; because the only DinoBloom-held-out dataset is also our source domain, this benchmark cannot isolate exposure from scanner-associated distribution shift. Finally, label-free adaptation and marginal-entropy-based model selection appear safe under balanced evaluation but fail under realistic WBC class-prior shift. Class-Balanced Re-standardization (CBR), a training-free pseudo-label-balanced feature normalization, improves all evaluated target-prior scenario means and partially improves calibration, although encoder-level exceptions and residual miscalibration remain. These results argue that hematology FM benchmarks must jointly audit accuracy, calibration, exposure, and class-prior robustness.",
+  "isPartOf": {
+    "@type": "PublicationEvent",
+    "name": "HemaRAI Workshop at MICCAI 2026",
+    "url": "https://openreview.net/group?id=MICCAI.org/2026/Workshop/HemaRAI"
+  },
+  "encoding": {
+    "@type": "MediaObject",
+    "contentUrl": "https://jaishrm07.github.io/hematology-fm-robustness/static/paper.pdf",
+    "encodingFormat": "application/pdf",
+    "name": "Can You Trust Frozen Hematology Foundation Models under Acquisition Shift? (PDF)"
+  },
+  "associatedMedia": [
+    {
+      "@type": "ImageObject",
+      "contentUrl": "https://jaishrm07.github.io/hematology-fm-robustness/static/images/figA_rho_matrix.png",
+      "caption": "Clean-to-target rank transfer is probe-dependent: Spearman rho between in-domain and shifted-target encoder rankings across the full source-by-target matrix."
+    },
+    {
+      "@type": "ImageObject",
+      "contentUrl": "https://jaishrm07.github.io/hematology-fm-robustness/static/images/figF_calibration.png",
+      "caption": "Calibration collapses off-domain and source-fitted temperature scaling does not transfer; only oracle target temperature scaling substantially helps."
+    },
+    {
+      "@type": "ImageObject",
+      "contentUrl": "https://jaishrm07.github.io/hematology-fm-robustness/static/images/figE_cbr_labelshift.png",
+      "caption": "Global target standardization hurts under neutrophil-dominated class priors, while class-balanced re-standardization stays positive across all 18 evaluated target-prior scenario means."
+    }
+  ]
+}
+</script>
+<style>
+/* ------------------------------------------------------------------
+   Design: "clinical specimen report". The paper audits instruments
+   used on blood smears, so the page is set like a lab requisition —
+   warm paper plane, ruled section heads, monospace for every measured
+   quantity, and specimen-card framing for each finding.
+   Colour is reserved for ENCODER FAMILY and nothing else (hematology
+   FM / pathology FM / general vision / ImageNet-supervised), so no
+   chrome element can impersonate a data series. The four family hues
+   are the validated categorical slots 1-4; every family is also
+   direct-labelled, which is the required relief for the two hues that
+   sit under 3:1 against the paper surface.
+   ------------------------------------------------------------------ */
+:root{
+  --plane:#efece7;
+  --plane-2:#f6f4f0;
+  --surface:#fdfcfa;
+  --ink:#171310;
+  --ink-2:#4e4640;
+  --muted:#7d746c;
+  --rule:#ddd7ce;
+  --rule-2:#c2b9ad;
+  --link:#7a2318;
+  --wash:rgba(23,19,16,.055);
+
+  /* encoder family identity — validated categorical slots (CVD-checked) */
+  --f-hema:#eb6834;   /* hematology FM        */
+  --f-path:#1baf7a;   /* pathology FM         */
+  --f-gen:#2a78d6;    /* general SSL / VLM    */
+  --f-in:#eda100;     /* ImageNet-supervised  */
+
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+
+  --pad:clamp(18px,4.2vw,40px);
+  --gap:clamp(44px,6vw,76px);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--plane);color:var(--ink);
+  font-family:var(--serif);font-size:17px;line-height:1.62;
+  text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;
+}
+a{color:var(--link);text-decoration:none;border-bottom:1px solid rgba(122,35,24,.32)}
+a:hover{border-bottom-color:var(--link)}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:2px}
+img{max-width:100%;display:block}
+
+.skip{position:absolute;left:-9999px;top:0}
+.skip:focus{left:12px;top:12px;z-index:50;background:var(--ink);color:#fff;padding:8px 14px;border:0;font-family:var(--mono);font-size:12px}
+
+.wrap{max-width:1060px;margin:0 auto;padding-left:var(--pad);padding-right:var(--pad)}
+.prose{max-width:68ch}
+
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;display:block}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.94em;letter-spacing:-.01em}
+.stat{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(239,236,231,.94);backdrop-filter:saturate(1.3) blur(8px);border-bottom:1px solid var(--rule)}
+.topbar .wrap{display:flex;align-items:center;gap:20px;min-height:46px}
+.topbar .mark{font-family:var(--mono);font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink);border:0;white-space:nowrap}
+.topbar nav{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.topbar nav a{font-family:var(--mono);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);border:0;padding:4px 0;border-bottom:1px solid transparent}
+.topbar nav a:hover{color:var(--ink);border-bottom-color:var(--ink)}
+@media (max-width:860px){.topbar nav{display:none}}
+
+/* ---------- hero ---------- */
+.hero{
+  border-bottom:1px solid var(--rule);
+  background-image:repeating-linear-gradient(to bottom,rgba(23,19,16,.032) 0 1px,transparent 1px 26px);
+}
+.hero .wrap{padding-top:clamp(30px,5vw,58px);padding-bottom:clamp(32px,5vw,54px)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);gap:clamp(24px,3.4vw,42px);align-items:start}
+@media (max-width:960px){.hero-grid{grid-template-columns:minmax(0,1fr);gap:30px}}
+
+.badge{
+  display:inline-flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink);background:rgba(23,19,16,.05);
+  border:1px solid var(--rule-2);border-radius:2px;padding:5px 11px;margin:0 0 20px;
+}
+.badge .dot{width:5px;height:5px;border-radius:50%;background:var(--link);display:inline-block}
+
+h1{font-family:var(--sans);font-weight:800;font-size:clamp(28px,3.7vw,42px);line-height:1.07;letter-spacing:-.028em;margin:0 0 20px;text-wrap:balance}
+h1 .q{color:var(--ink-2)}
+
+.authors{margin:0 0 4px;font-family:var(--sans);font-size:17px;font-weight:600;line-height:1.5}
+.authors sup{font-weight:500;font-size:.68em;color:var(--ink-2)}
+.affil{margin:6px 0 0;font-family:var(--mono);font-size:12px;color:var(--ink-2);line-height:1.7}
+.affil sup{color:var(--muted)}
+
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 0}
+.btn{
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  display:inline-flex;align-items:center;gap:6px;padding:10px 13px;border-radius:3px;
+  border:1px solid var(--rule-2);background:var(--surface);color:var(--ink);text-decoration:none;
+  transition:background .15s ease,border-color .15s ease,transform .15s ease;
+}
+.btn:hover{border-color:var(--ink);transform:translateY(-1px)}
+.btn-primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn-primary:hover{background:#000}
+.btn[aria-disabled="true"]{background:transparent;color:var(--muted);border-style:dashed;cursor:not-allowed}
+.btn[aria-disabled="true"]:hover{transform:none;border-color:var(--rule-2)}
+.btn .k{opacity:.55;font-size:10px}
+
+/* ---------- signature slope chart ---------- */
+.plot-card{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:18px 18px 15px;box-shadow:0 1px 0 rgba(23,19,16,.04)}
+.plot-card h2{font-family:var(--sans);font-size:15px;font-weight:700;letter-spacing:-.01em;margin:0 0 4px}
+.plot-card .sub{margin:0 0 12px;font-family:var(--sans);font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.plot svg{width:100%;max-width:100%;height:auto;display:block}
+.colhead{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;fill:var(--ink-2)}
+.nlabel{font-family:var(--mono);font-size:9.2px;fill:#4e4640}
+.nlabel.hi{font-weight:700;fill:#171310}
+.rk{font-family:var(--mono);font-size:8.4px;fill:#7d746c}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0 0;padding-top:11px;border-top:1px solid var(--rule)}
+.legend span{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;color:var(--ink-2)}
+.sw{width:9px;height:9px;border-radius:2px;flex:none;display:inline-block}
+.plot-note{margin:10px 0 0;font-family:var(--sans);font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+
+/* ---------- sections ---------- */
+section{padding-top:var(--gap)}
+section:last-of-type{padding-bottom:var(--gap)}
+h2.sec{font-family:var(--sans);font-weight:700;font-size:clamp(22px,2.7vw,29px);letter-spacing:-.02em;line-height:1.15;margin:0 0 18px}
+h3{font-family:var(--sans);font-weight:700;font-size:16px;letter-spacing:-.01em;margin:30px 0 10px}
+p{margin:0 0 16px}
+
+.tldr{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--link);border-radius:3px;padding:22px clamp(20px,3vw,30px)}
+.tldr p{margin:0;font-size:18px;line-height:1.58}
+.tldr strong{font-weight:600}
+
+.abstract{background:var(--plane-2);border:1px solid var(--rule);border-radius:3px;padding:clamp(20px,3vw,30px)}
+.abstract p:last-child{margin-bottom:0}
+
+/* ---------- findings ---------- */
+.findings{border-top:1px solid var(--rule-2)}
+.finding{display:grid;grid-template-columns:186px minmax(0,1fr);gap:8px 30px;padding:22px 0;border-bottom:1px solid var(--rule)}
+@media (max-width:720px){.finding{grid-template-columns:minmax(0,1fr);gap:8px}}
+.finding>*{min-width:0}
+.finding .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);padding-top:5px}
+.finding .tag .chip{display:flex;align-items:center;gap:8px;margin-bottom:7px;color:var(--ink);letter-spacing:.06em}
+.finding h3{margin:0 0 7px;font-size:17px}
+.finding p{margin:0;color:var(--ink-2);font-size:16px}
+.finding p + p{margin-top:8px}
+
+/* ---------- tables ---------- */
+.scroll{
+  overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;
+  border:1px solid var(--rule);border-radius:3px;
+  background:
+    linear-gradient(to right,var(--surface) 40%,rgba(253,252,250,0)) left/26px 100% no-repeat,
+    linear-gradient(to left,var(--surface) 40%,rgba(253,252,250,0)) right/26px 100% no-repeat,
+    radial-gradient(farthest-side at 0 50%,rgba(23,19,16,.13),rgba(23,19,16,0)) left/11px 100% no-repeat,
+    radial-gradient(farthest-side at 100% 50%,rgba(23,19,16,.13),rgba(23,19,16,0)) right/11px 100% no-repeat,
+    var(--surface);
+  background-attachment:local,local,scroll,scroll,local;
+}
+table{border-collapse:collapse;width:100%;min-width:640px;font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.tcap{font-family:var(--sans);font-size:13.5px;line-height:1.6;color:var(--ink-2);margin:14px 0 0;max-width:78ch}
+.tcap b{color:var(--ink)}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+thead th{font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--rule-2);vertical-align:bottom}
+th[scope="row"],td:first-child,th:first-child{text-align:left}
+tbody th{font-weight:500;color:var(--ink);font-size:12.5px;text-transform:none;letter-spacing:0}
+tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:rgba(23,19,16,.022)}
+td.best{font-weight:700;color:var(--ink);background:var(--wash)}
+tr.sup th,tr.sup td{font-style:italic;color:var(--muted);border-top:1px solid var(--rule-2)}
+.mname{display:inline-flex;align-items:center;gap:9px}
+.tnote{font-family:var(--sans);font-size:12.5px;color:var(--muted);margin:10px 0 0}
+.table-narrow table{min-width:430px}
+
+/* ---------- figures ---------- */
+figure{margin:0 0 30px;background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:clamp(14px,2.4vw,24px)}
+figure img{margin:0 auto}
+figcaption{font-family:var(--sans);font-size:13.5px;line-height:1.6;color:var(--ink-2);margin-top:16px;padding-top:13px;border-top:1px solid var(--rule)}
+figcaption b{color:var(--ink);font-weight:700}
+.figpair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:760px){.figpair{grid-template-columns:minmax(0,1fr)}}
+.figpair img{width:100%}
+.fig-single img{max-width:620px;width:100%}
+
+/* ---------- guidance ---------- */
+.rules{list-style:none;margin:0;padding:0}
+.rules li{border-left:3px solid var(--rule-2);padding:2px 0 2px 20px;margin:0 0 22px}
+.rules li.do{border-left:3px solid var(--ink)}
+.rules li.dont{border-left:3px dashed var(--rule-2)}
+.rules b{display:block;font-family:var(--sans);font-size:15.5px;margin-bottom:5px}
+.rules p{margin:0;font-size:16px;color:var(--ink-2)}
+
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(20px,3vw,44px)}
+@media (max-width:760px){.cols{grid-template-columns:minmax(0,1fr)}}
+.deflist{margin:0;font-size:15.5px}
+.deflist dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:18px}
+.deflist dt:first-child{margin-top:0}
+.deflist dd{margin:5px 0 0;color:var(--ink-2)}
+
+/* ---------- bibtex ---------- */
+.bib{background:var(--surface);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.bib .hd{display:flex;align-items:center;gap:14px;padding:11px 16px;border-bottom:1px solid var(--rule);background:var(--plane-2)}
+.bib .hd span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.bib button{margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;background:var(--surface);border:1px solid var(--rule-2);border-radius:3px;color:var(--ink);padding:6px 11px;cursor:pointer}
+.bib button:hover{border-color:var(--ink)}
+pre{margin:0;padding:18px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.75;color:var(--ink);-webkit-overflow-scrolling:touch}
+
+footer{border-top:1px solid var(--rule-2);background:var(--plane-2)}
+footer .wrap{padding-top:30px;padding-bottom:40px;display:flex;flex-wrap:wrap;gap:14px 34px;align-items:baseline}
+footer p{margin:0;font-family:var(--mono);font-size:11.5px;line-height:1.9;color:var(--ink-2)}
+
+@media (prefers-reduced-motion:no-preference){
+  .rise{opacity:0;transform:translateY(9px);animation:rise .62s cubic-bezier(.22,.61,.36,1) forwards}
+  .d1{animation-delay:.05s}.d2{animation-delay:.11s}.d3{animation-delay:.17s}.d4{animation-delay:.23s}
+}
+@keyframes rise{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{.topbar,.btns{display:none}body{background:#fff}.hero{background-image:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="mark" href="#top">Hematology FM robustness audit</a>
+    <nav aria-label="Sections">
+      <a href="#abstract">Abstract</a>
+      <a href="#findings">Findings</a>
+      <a href="#leaderboard">Leaderboard</a>
+      <a href="#figures">Figures</a>
+      <a href="#protocol">Protocol</a>
+      <a href="#guidance">Guidance</a>
+      <a href="#bibtex">BibTeX</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============================== HERO ============================== -->
+<section class="hero" id="top" style="padding-top:0">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <p class="badge rise d1"><span class="dot" aria-hidden="true"></span>HemaRAI @ MICCAI 2026 &middot; Oral</p>
+        <h1 class="rise d1">Can You Trust Frozen Hematology Foundation Models under Acquisition Shift<span class="q">?</span></h1>
+
+        <p class="authors rise d2">
+          <a href="https://scholar.google.com/citations?user=IRdgHHsAAAAJ" title="Google Scholar profile">Jai Kumar Sharma</a><sup>1,<a href="mailto:jaisharma@vt.edu" title="Email the corresponding author">&#9993;</a></sup>,
+          <a href="mailto:peeyush.tapadiya@accenture.com">Peeyush Tapadiya</a><sup>2</sup>
+        </p>
+        <p class="affil rise d2">
+          <sup>1</sup> Virginia Tech &nbsp;&middot;&nbsp; <sup>2</sup> Accenture &nbsp;&middot;&nbsp; <sup>&#9993;</sup> corresponding author
+        </p>
+
+        <div class="btns rise d3">
+          <a class="btn btn-primary" href="static/paper.pdf">Paper <span class="k">PDF</span></a>
+          <a class="btn" href="https://openreview.net/group?id=MICCAI.org/2026/Workshop/HemaRAI">Workshop</a>
+          <!-- TODO: swap for the paper's own OpenReview forum URL once confirmed -->
+          <span class="btn" aria-disabled="true">OpenReview <span class="k">soon</span></span>
+          <!-- TODO: add arXiv link the day the preprint is announced -->
+          <span class="btn" aria-disabled="true">arXiv <span class="k">soon</span></span>
+          <span class="btn" aria-disabled="true">Code <span class="k">soon</span></span>
+          <a class="btn" href="#bibtex">BibTeX</a>
+        </div>
+      </div>
+
+      <!-- SIGNATURE: the paper's thesis, plotted. Encoder rank in-domain
+           against rank on the most-shifted scanner. -->
+      <div class="plot-card rise d4">
+        <span class="eyebrow">The re-ranking</span>
+        <h2>In-domain rank does not survive a scanner change</h2>
+        <p class="sub">All 15 frozen encoders, ranked by linear-probe macro-F1 on the source domain (left) and on the most-shifted target, MLL23 (right).</p>
+        <div class="plot">
+          <svg viewBox="0 0 430 376" role="img" aria-labelledby="slope-t slope-d" preserveAspectRatio="xMidYMid meet">
+            <title id="slope-t">Encoder rank in-domain versus rank on the most-shifted target MLL23</title>
+            <desc id="slope-d">A slope chart connecting each of 15 frozen encoders' in-domain rank to its rank on MLL23. DinoBloom-L falls from 1st in-domain to 10th; DinoBloom-B from 2nd to 9th; Phikon falls furthest, from 4th to 14th. RedDino rises from 6th to 1st, DINOv2-B from 9th to 3rd, and DINOv2-S from 11th to 4th. Lunit-DINO and ViT-B hold their positions at 5th and 7th.</desc>
+
+            <text class="colhead" x="150" y="16" text-anchor="end">IN-DOMAIN (ACEVEDO)</text>
+            <text class="colhead" x="272" y="16" text-anchor="start">MLL23 (SHIFTED)</text>
+            <line x1="158" y1="22" x2="158" y2="346" stroke="#c2b9ad" stroke-width="1"></line>
+            <line x1="264" y1="22" x2="264" y2="346" stroke="#c2b9ad" stroke-width="1"></line>
+
+            <!-- slopes: 1.6px default, 2.6px for the headline encoder -->
+            <g fill="none" stroke-linecap="round">
+              <line x1="158" y1="30"  x2="264" y2="228" stroke="#eb6834" stroke-width="2.6"></line>
+              <line x1="158" y1="52"  x2="264" y2="206" stroke="#eb6834" stroke-width="1.6"></line>
+              <line x1="158" y1="74"  x2="264" y2="52"  stroke="#eb6834" stroke-width="1.6"></line>
+              <line x1="158" y1="96"  x2="264" y2="316" stroke="#1baf7a" stroke-width="2.6"></line>
+              <line x1="158" y1="118" x2="264" y2="118" stroke="#1baf7a" stroke-width="1.6"></line>
+              <line x1="158" y1="140" x2="264" y2="30"  stroke="#eb6834" stroke-width="2.6"></line>
+              <line x1="158" y1="162" x2="264" y2="162" stroke="#eda100" stroke-width="1.6"></line>
+              <line x1="158" y1="184" x2="264" y2="272" stroke="#eda100" stroke-width="1.6"></line>
+              <line x1="158" y1="206" x2="264" y2="74"  stroke="#2a78d6" stroke-width="1.6"></line>
+              <line x1="158" y1="228" x2="264" y2="140" stroke="#2a78d6" stroke-width="1.6"></line>
+              <line x1="158" y1="250" x2="264" y2="96"  stroke="#2a78d6" stroke-width="1.6"></line>
+              <line x1="158" y1="272" x2="264" y2="184" stroke="#2a78d6" stroke-width="1.6"></line>
+              <line x1="158" y1="294" x2="264" y2="338" stroke="#2a78d6" stroke-width="1.6"></line>
+              <line x1="158" y1="316" x2="264" y2="294" stroke="#eda100" stroke-width="1.6"></line>
+              <line x1="158" y1="338" x2="264" y2="250" stroke="#2a78d6" stroke-width="1.6"></line>
+            </g>
+
+            <!-- nodes: 2px surface ring keeps crowded marks legible -->
+            <g stroke="#fdfcfa" stroke-width="2">
+              <circle cx="158" cy="30"  r="4.6" fill="#eb6834"><title>DinoBloom-L &#8212; in-domain rank 1</title></circle>
+              <circle cx="158" cy="52"  r="4.6" fill="#eb6834"><title>DinoBloom-B &#8212; in-domain rank 2</title></circle>
+              <circle cx="158" cy="74"  r="4.6" fill="#eb6834"><title>DinoBloom-S &#8212; in-domain rank 3</title></circle>
+              <circle cx="158" cy="96"  r="4.6" fill="#1baf7a"><title>Phikon &#8212; in-domain rank 4</title></circle>
+              <circle cx="158" cy="118" r="4.6" fill="#1baf7a"><title>Lunit-DINO &#8212; in-domain rank 5</title></circle>
+              <circle cx="158" cy="140" r="4.6" fill="#eb6834"><title>RedDino &#8212; in-domain rank 6</title></circle>
+              <circle cx="158" cy="162" r="4.6" fill="#eda100"><title>ViT-B (IN) &#8212; in-domain rank 7</title></circle>
+              <circle cx="158" cy="184" r="4.6" fill="#eda100"><title>EVA-02 (IN) &#8212; in-domain rank 8</title></circle>
+              <circle cx="158" cy="206" r="4.6" fill="#2a78d6"><title>DINOv2-B &#8212; in-domain rank 9</title></circle>
+              <circle cx="158" cy="228" r="4.6" fill="#2a78d6"><title>DINOv2-L &#8212; in-domain rank 10</title></circle>
+              <circle cx="158" cy="250" r="4.6" fill="#2a78d6"><title>DINOv2-S &#8212; in-domain rank 11</title></circle>
+              <circle cx="158" cy="272" r="4.6" fill="#2a78d6"><title>CLIP-L/14 &#8212; in-domain rank 12</title></circle>
+              <circle cx="158" cy="294" r="4.6" fill="#2a78d6"><title>CLIP-B/16 &#8212; in-domain rank 13</title></circle>
+              <circle cx="158" cy="316" r="4.6" fill="#eda100"><title>ResNet-50 (IN) &#8212; in-domain rank 14</title></circle>
+              <circle cx="158" cy="338" r="4.6" fill="#2a78d6"><title>BiomedCLIP &#8212; in-domain rank 15</title></circle>
+
+              <circle cx="264" cy="30"  r="4.6" fill="#eb6834"><title>RedDino &#8212; MLL23 rank 1, macro-F1 0.704</title></circle>
+              <circle cx="264" cy="52"  r="4.6" fill="#eb6834"><title>DinoBloom-S &#8212; MLL23 rank 2, macro-F1 0.671</title></circle>
+              <circle cx="264" cy="74"  r="4.6" fill="#2a78d6"><title>DINOv2-B &#8212; MLL23 rank 3, macro-F1 0.650</title></circle>
+              <circle cx="264" cy="96"  r="4.6" fill="#2a78d6"><title>DINOv2-S &#8212; MLL23 rank 4, macro-F1 0.634</title></circle>
+              <circle cx="264" cy="118" r="4.6" fill="#1baf7a"><title>Lunit-DINO &#8212; MLL23 rank 5, macro-F1 0.609</title></circle>
+              <circle cx="264" cy="140" r="4.6" fill="#2a78d6"><title>DINOv2-L &#8212; MLL23 rank 6, macro-F1 0.588</title></circle>
+              <circle cx="264" cy="162" r="4.6" fill="#eda100"><title>ViT-B (IN) &#8212; MLL23 rank 7, macro-F1 0.571</title></circle>
+              <circle cx="264" cy="184" r="4.6" fill="#2a78d6"><title>CLIP-L/14 &#8212; MLL23 rank 8, macro-F1 0.568</title></circle>
+              <circle cx="264" cy="206" r="4.6" fill="#eb6834"><title>DinoBloom-B &#8212; MLL23 rank 9, macro-F1 0.553</title></circle>
+              <circle cx="264" cy="228" r="4.6" fill="#eb6834"><title>DinoBloom-L &#8212; MLL23 rank 10, macro-F1 0.552</title></circle>
+              <circle cx="264" cy="250" r="4.6" fill="#2a78d6"><title>BiomedCLIP &#8212; MLL23 rank 11, macro-F1 0.526</title></circle>
+              <circle cx="264" cy="272" r="4.6" fill="#eda100"><title>EVA-02 (IN) &#8212; MLL23 rank 12, macro-F1 0.486</title></circle>
+              <circle cx="264" cy="294" r="4.6" fill="#eda100"><title>ResNet-50 (IN) &#8212; MLL23 rank 13, macro-F1 0.416</title></circle>
+              <circle cx="264" cy="316" r="4.6" fill="#1baf7a"><title>Phikon &#8212; MLL23 rank 14, macro-F1 0.410</title></circle>
+              <circle cx="264" cy="338" r="4.6" fill="#2a78d6"><title>CLIP-B/16 &#8212; MLL23 rank 15, macro-F1 0.386</title></circle>
+            </g>
+
+            <!-- direct labels: every series is named, which is the required
+                 relief for the two hues under 3:1 against this surface -->
+            <g class="nlabel" text-anchor="end">
+              <text x="150" y="33" class="nlabel hi">1 &nbsp;DinoBloom-L</text>
+              <text x="150" y="55">2 &nbsp;DinoBloom-B</text>
+              <text x="150" y="77">3 &nbsp;DinoBloom-S</text>
+              <text x="150" y="99" class="nlabel hi">4 &nbsp;Phikon</text>
+              <text x="150" y="121">5 &nbsp;Lunit-DINO</text>
+              <text x="150" y="143" class="nlabel hi">6 &nbsp;RedDino</text>
+              <text x="150" y="165">7 &nbsp;ViT-B</text>
+              <text x="150" y="187">8 &nbsp;EVA-02</text>
+              <text x="150" y="209">9 &nbsp;DINOv2-B</text>
+              <text x="150" y="231">10 &nbsp;DINOv2-L</text>
+              <text x="150" y="253">11 &nbsp;DINOv2-S</text>
+              <text x="150" y="275">12 &nbsp;CLIP-L/14</text>
+              <text x="150" y="297">13 &nbsp;CLIP-B/16</text>
+              <text x="150" y="319">14 &nbsp;ResNet-50</text>
+              <text x="150" y="341">15 &nbsp;BiomedCLIP</text>
+            </g>
+            <g class="nlabel" text-anchor="start">
+              <text x="272" y="33" class="nlabel hi">1 &nbsp;RedDino</text>
+              <text x="272" y="55">2 &nbsp;DinoBloom-S</text>
+              <text x="272" y="77">3 &nbsp;DINOv2-B</text>
+              <text x="272" y="99">4 &nbsp;DINOv2-S</text>
+              <text x="272" y="121">5 &nbsp;Lunit-DINO</text>
+              <text x="272" y="143">6 &nbsp;DINOv2-L</text>
+              <text x="272" y="165">7 &nbsp;ViT-B</text>
+              <text x="272" y="187">8 &nbsp;CLIP-L/14</text>
+              <text x="272" y="209">9 &nbsp;DinoBloom-B</text>
+              <text x="272" y="231" class="nlabel hi">10 &nbsp;DinoBloom-L</text>
+              <text x="272" y="253">11 &nbsp;BiomedCLIP</text>
+              <text x="272" y="275">12 &nbsp;EVA-02</text>
+              <text x="272" y="297">13 &nbsp;ResNet-50</text>
+              <text x="272" y="319" class="nlabel hi">14 &nbsp;Phikon</text>
+              <text x="272" y="341">15 &nbsp;CLIP-B/16</text>
+            </g>
+
+            <text class="rk" x="211" y="368" text-anchor="middle">rank 1 = best of 15</text>
+          </svg>
+        </div>
+
+        <div class="legend">
+          <span><i class="sw" style="background:#eb6834"></i>Hematology FM</span>
+          <span><i class="sw" style="background:#1baf7a"></i>Pathology FM</span>
+          <span><i class="sw" style="background:#2a78d6"></i>General SSL / VLM</span>
+          <span><i class="sw" style="background:#eda100"></i>ImageNet-supervised</span>
+        </div>
+        <p class="plot-note">Every encoder is within <span class="num">0.98&#8211;0.997</span> macro-F1 in-domain, so the left column is decided by hundredths of a point. On the target it spreads to <span class="num">0.386&#8211;0.704</span>. Specialization does not settle it either: the two hematology FMs finish 1st and 10th, the two pathology FMs 5th and 14th.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== TL;DR ============================== -->
+<section id="tldr">
+  <div class="wrap">
+    <span class="eyebrow">TL;DR</span>
+    <div class="tldr">
+      <p>In-domain accuracy and in-domain confidence <strong>both fail to predict cross-scanner reliability</strong>. Fifteen frozen encoders sit at <span class="num">0.98&#8211;0.997</span> macro-F1 on the source scanner; move to a new one and macro-F1 drops <span class="num">34&#8211;72%</span>, the ranking re-orders, and calibration error goes from <span class="num">0.004</span> to <span class="num">0.35</span>. Label-free adaptation looks safe on balanced test sets and <strong>fails under real blood-differential class priors</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== ABSTRACT ============================== -->
+<section id="abstract">
+  <div class="wrap">
+    <span class="eyebrow">Abstract</span>
+    <h2 class="sec">Auditing frozen embeddings, not training new classifiers</h2>
+    <div class="abstract prose">
+      <p>Frozen hematology foundation-model (FM) embeddings reach near-saturated in-domain white-blood-cell (WBC) accuracy, but clinical deployment demands reliability across scanners, sites, stains and preparation pipelines. We audit 15 frozen encoders (hematology, pathology, and general vision encoders) across four public single-cell acquisition domains along two axes: accuracy robustness and calibration.</p>
+      <p>In-domain linear-probe macro-F1 is saturated (<span class="num">0.98&#8211;0.997</span>), yet cross-dataset macro-F1 drops <span class="num">34&#8211;72%</span> and rankings re-order: DinoBloom-L, the in-domain best, falls to 10th of 15 on the most-shifted target (MLL23) at the benchmark's shared 224-px input, while RedDino and several general and pathology encoders outrank it. Rank transfer is <em>probe-dependent</em>: 1-NN retrieval is more stable on average than a source-fitted linear head (median <span class="num">&#961; 0.65</span> vs <span class="num">0.45</span>), but neither clean-domain probe universally predicts target robustness. Calibration also collapses: source-trained probes are nearly calibrated in-domain (Expected Calibration Error [ECE] <span class="num">0.004</span>) but become confidently wrong off-domain (ECE <span class="num">0.35</span>), and source-fitted temperature scaling transfers poorly.</p>
+      <p>We further audit pretraining exposure and identify MLL23 as corresponding to DinoBloom's internal cohort; because the only DinoBloom-held-out dataset is also our source domain, this benchmark cannot isolate exposure from scanner-associated distribution shift. Finally, label-free adaptation and marginal-entropy-based model selection appear safe under balanced evaluation but fail under realistic WBC class-prior shift. <em>Class-Balanced Re-standardization</em> (CBR), a training-free pseudo-label-balanced feature normalization, improves all evaluated target-prior scenario means and partially improves calibration, although encoder-level exceptions and residual miscalibration remain. These results argue that hematology FM benchmarks must jointly audit accuracy, calibration, exposure, and class-prior robustness.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== FINDINGS ============================== -->
+<section id="findings">
+  <div class="wrap">
+    <span class="eyebrow">Results</span>
+    <h2 class="sec">Six findings</h2>
+    <p class="prose" style="color:var(--ink-2)">Source domain is Acevedo (BloodMNIST@224, CellaVision DM96); targets are MLL23/Metafer, Matek-LMU/M8 and Raabin. Every number is a mean over five source splits on the fixed five-class WBC intersection.</p>
+
+    <div class="findings">
+
+      <article class="finding">
+        <div class="tag">
+          <span class="chip"><i class="sw" style="background:#eb6834"></i>Hematology FM</span>
+          Axis A &middot; accuracy
+        </div>
+        <div>
+          <h3>The in-domain winner is 10th on the shifted scanner</h3>
+          <p>DinoBloom-L tops the source domain and lands <span class="stat">10th of 15</span> on MLL23 (<span class="num">0.552</span>), <span class="num">0.15</span> macro-F1 behind RedDino (<span class="stat">0.704</span>) and behind DINOv2 and a pathology encoder as well. Phikon falls further &#8212; 4th in-domain to <span class="stat">14th</span>. Paired bootstraps over the MLL23 examples put the RedDino&#8722;DinoBloom-L, DinoBloom-S&#8722;DinoBloom-L and Lunit&#8722;Phikon gaps at 95% CIs that exclude zero, so this is not sampling noise.</p>
+          <p>Specialization does not decide it either: the two pathology FMs land at <span class="num">0.609</span> (Lunit) and <span class="num">0.410</span> (Phikon), the widest within-family split on the board.</p>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="tag">
+          Axis A &middot; rank transfer
+        </div>
+        <div>
+          <h3>Clean-domain ranking is a weak predictor from every source</h3>
+          <p>Spearman <span class="num">&#961;</span> between the in-domain and target rankings falls to <span class="stat">0.27</span> on the most-shifted target. Running every domain as the source in turn, <span class="num">&#961;</span> stays low across all 12 source&#8211;target pairs (median <span class="stat">0.45</span>) and the in-domain-best encoder is dethroned in <span class="stat">8 of 12</span>.</p>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="tag">
+          Axis A &middot; probe choice
+        </div>
+        <div>
+          <h3>Which probe you use changes the answer</h3>
+          <p>1-NN retrieval transfers ranks better on average than a source-fitted linear head (median <span class="stat">&#961; 0.65</span> vs <span class="num">0.45</span>) &#8212; local neighbourhood geometry survives the scanner change better than a fitted decision boundary. But it is not a safe selector either: on Acevedo&#8594;Raabin 1-NN drops to <span class="num">&#961; 0.34</span>, below the linear probe's <span class="num">0.43</span>.</p>
+          <p>Sweeping eight source-only heads (logistic regression across six orders of regularization, linear SVM, nearest-centroid, cosine centroid, 1-NN) leaves the pattern intact: every linear head lands at <span class="num">&#961; 0.13&#8211;0.38</span> on MLL23 while the local-geometry heads reach <span class="num">0.61&#8211;0.77</span>. Robustness rankings belong to the encoder <em>and</em> the probe, not the representation alone.</p>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="tag">
+          Axis B &middot; calibration
+        </div>
+        <div>
+          <h3>Confidence collapses, and source calibration does not transfer</h3>
+          <p>Source-trained probes are nearly perfectly calibrated in-domain (ECE <span class="num">0.004</span>, NLL <span class="num">0.03</span>) and become confidently wrong off-domain (ECE <span class="stat">0.35</span>, NLL <span class="num">3.2</span>) &#8212; roughly <span class="num">80&#215;</span> worse. Fitting a temperature on held-out source data barely helps (<span class="num">0.35&#8594;0.32</span>), because the source probe is already calibrated and the fitted temperature is <span class="num">&#8776;1</span>. Only oracle target temperature scaling, which needs target labels and is not deployable, substantially repairs it (<span class="num">&#8594;0.07</span>).</p>
+          <p>The practical fix is small and local: fitting the temperature on <span class="stat">16&#8211;32 labelled target images</span> recovers most of the gap (ECE <span class="num">0.088</span> at K=32 against an oracle <span class="num">0.074</span>). Calibrate per scanner, on a handful of slides.</p>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="tag">
+          Exposure audit
+        </div>
+        <div>
+          <h3>The benchmark cannot separate exposure from shift</h3>
+          <p>MLL23 corresponds to DinoBloom's internal cohort (the same 41,906-image Munich Leukemia Laboratory dataset), and Matek and Raabin are also in its pretraining corpus. That leaves Acevedo &#8212; our <em>source</em> &#8212; as DinoBloom's only held-out dataset, so there is no leakage-free target: DinoBloom's target-side numbers measure transfer to in-pretraining domains, not clean held-out generalization.</p>
+          <p>We report exposure status rather than assume its effect. In the reverse direction DinoBloom transfers <em>best</em> to its held-out Acevedo, which is inconsistent with a simple leakage-inflation story but confounded with Acevedo being an easier domain. Public hematology benchmarks are exposure-ambiguous, and that is worth stating out loud.</p>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="tag">
+          Class-prior shift
+        </div>
+        <div>
+          <h3>Label-free adaptation passes on balanced data and fails on clinical priors</h3>
+          <p>Real differentials are neutrophil-dominated, so we resampled each target to six class priors. Global target standardization (BN-adaptation) helps on balanced and mild priors but <em>hurts</em> on realistic ones (<span class="num">&#8722;0.07</span> clinical, <span class="num">&#8722;0.08</span> neutrophil-heavy; harmful in 6 of 18 scenarios). SHOT/IM is worse (mean <span class="num">&#8722;0.029</span>, harmful in 10/18), and BBSE &#8212; a label-shift estimator &#8212; hurts in <span class="stat">all 18</span>: it corrects the label prior, not the feature-space scanner shift.</p>
+          <p>Model <em>selection</em> breaks the same way. Marginal prediction entropy looks oracle-like under balanced sampling and carries <span class="num">0.25&#8211;0.37</span> selection regret under skew, so we do not have a reliable label-free way to pick an encoder at deployment time.</p>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="tag">
+          CBR &middot; the fix
+        </div>
+        <div>
+          <h3>Class-balanced re-standardization, and what it does not fix</h3>
+          <p>CBR estimates target feature statistics from <em>pseudo-label-balanced</em> class means instead of the raw batch mean, so the statistics stop tracking whichever class dominates the batch. It is training-free, label-free and single-batch, and it is positive in <span class="stat">all 18</span> target&#215;prior scenario means (mean <span class="num">+0.059</span>, hierarchical bootstrap CI <span class="num">[+0.046, +0.073]</span>), recovering about <span class="num">61%</span> of a true-label oracle.</p>
+          <p>Two honest caveats. Per encoder, <span class="num">29</span> of the <span class="num">270</span> encoder&#215;scenario cells are still negative (worst <span class="num">&#8722;0.09</span>, mostly DinoBloom under extreme skew) &#8212; against <span class="num">96/270</span> for global standardization and <span class="num">149/270</span> for SHOT/IM. And it only partly helps calibration: ECE <span class="num">0.35&#8594;0.29</span> alone, <span class="num">&#8594;0.25</span> with source temperature, still far above in-domain. Accuracy and calibration are separate deployment problems.</p>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============================== LEADERBOARD ============================== -->
+<section id="leaderboard">
+  <div class="wrap">
+    <span class="eyebrow">Table 1</span>
+    <h2 class="sec">Cross-dataset leaderboard</h2>
+    <p class="prose" style="color:var(--ink-2)">Linear-probe macro-F1, mean over 5 seeds, source = Acevedo, sorted by MLL23. The <b>MLL23 #</b> column is where the re-ranking becomes legible. Bold = strict column max.</p>
+
+    <div class="scroll">
+      <table aria-label="Cross-dataset leaderboard of 15 frozen encoders, linear-probe macro-F1">
+        <thead>
+          <tr>
+            <th scope="col">Encoder</th>
+            <th scope="col">Acevedo <span style="text-transform:none">(source)</span></th>
+            <th scope="col">Matek</th>
+            <th scope="col">MLL23</th>
+            <th scope="col">MLL23 #</th>
+            <th scope="col">Raabin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#eb6834"></i>RedDino <i>(hema)</i></span></th><td>0.994</td><td>0.544</td><td class="best">0.704</td><td>1</td><td class="best">0.450</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#eb6834"></i>DinoBloom-S <i>(hema)</i></span></th><td>0.995</td><td>0.613</td><td>0.671</td><td>2</td><td>0.341</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#2a78d6"></i>DINOv2-B</span></th><td>0.991</td><td>0.595</td><td>0.650</td><td>3</td><td>0.444</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#2a78d6"></i>DINOv2-S</span></th><td>0.988</td><td>0.505</td><td>0.634</td><td>4</td><td>0.248</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#1baf7a"></i>Lunit-DINO <i>(path)</i></span></th><td>0.995</td><td>0.409</td><td>0.609</td><td>5</td><td>0.288</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#2a78d6"></i>DINOv2-L</span></th><td>0.991</td><td>0.555</td><td>0.588</td><td>6</td><td>0.315</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#eda100"></i>ViT-B <i>(IN)</i></span></th><td>0.993</td><td>0.616</td><td>0.571</td><td>7</td><td>0.439</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#2a78d6"></i>CLIP-L/14</span></th><td>0.986</td><td>0.557</td><td>0.568</td><td>8</td><td>0.290</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#eb6834"></i>DinoBloom-B <i>(hema)</i></span></th><td class="best">0.997</td><td>0.635</td><td>0.553</td><td>9</td><td>0.448</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#eb6834"></i>DinoBloom-L <i>(hema)</i></span></th><td class="best">0.997</td><td class="best">0.648</td><td>0.552</td><td>10</td><td>0.385</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#2a78d6"></i>BiomedCLIP</span></th><td>0.980</td><td>0.410</td><td>0.526</td><td>11</td><td>0.280</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#eda100"></i>EVA-02 <i>(IN)</i></span></th><td>0.991</td><td>0.486</td><td>0.486</td><td>12</td><td>0.378</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#eda100"></i>ResNet-50 <i>(IN)</i></span></th><td>0.980</td><td>0.357</td><td>0.416</td><td>13</td><td>0.304</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#1baf7a"></i>Phikon <i>(path)</i></span></th><td>0.995</td><td>0.448</td><td>0.410</td><td>14</td><td>0.265</td></tr>
+          <tr><th scope="row"><span class="mname"><i class="sw" style="background:#2a78d6"></i>CLIP-B/16</span></th><td>0.981</td><td>0.387</td><td>0.386</td><td>15</td><td>0.337</td></tr>
+          <tr class="sup"><th scope="row">Sup. ResNet-18 (scratch)</th><td>0.908</td><td>0.584</td><td>0.255</td><td>&#8212;</td><td>0.096</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tcap"><b>Table 1 &#8212; Cross-dataset leaderboard.</b> <i>hema</i> = hematology FM, <i>path</i> = pathology FM, <i>IN</i> = ImageNet-supervised. DinoBloom-L is in-domain #1 by unrounded macro-F1 (it rounds to a tie with DinoBloom-B). The supervised ResNet-18 trained from scratch is a non-frozen baseline, not part of the 15-encoder ranking.</p>
+    <p class="tnote">Read the Acevedo column and then the MLL23 column: a spread of 0.017 in-domain becomes a spread of 0.318 on the shifted scanner, and the order barely survives.</p>
+  </div>
+</section>
+
+<!-- ============================== FIGURES ============================== -->
+<section id="figures">
+  <div class="wrap">
+    <span class="eyebrow">Figures</span>
+    <h2 class="sec">What the audit looks like</h2>
+
+    <figure class="fig-single">
+      <img src="static/images/figA_rho_matrix.png" alt="Two heatmaps of Spearman rank correlation between in-domain and shifted-target encoder rankings across 15 encoders, for a linear probe (left) and a 1-NN probe (right). Every domain is used as source in turn. Linear-probe correlations range from 0.20 to 0.68 with a median of 0.45, and the MLL23 target column is lowest at 0.24 to 0.31. The 1-NN panel is higher on average, 0.34 to 0.88 with a median of 0.65, but Acevedo to Raabin drops to 0.34.">
+      <figcaption><b>Figure 1 &#8212; Clean-to-target rank transfer is probe-dependent.</b> Spearman &#961; between in-domain and shifted-target encoder rankings (n = 15), linear probe (left) and 1-NN (right). 1-NN is more stable on average (median &#961; 0.65 vs 0.45) but not uniformly predictive. MLL23, the largest shift, is hardest for both &#8212; and is <i>not</i> leakage-free for DinoBloom.</figcaption>
+    </figure>
+
+    <div class="figpair">
+      <figure>
+        <img src="static/images/figF_calibration.png" alt="Left: a reliability diagram pooled over 15 encoders comparing source Acevedo against target MLL23, in which the target curve sits well below the diagonal, meaning predictions are confidently wrong. Right: a bar chart of target expected calibration error by arm, showing uncalibrated 0.35, source-fitted temperature scaling 0.32, class-balanced re-standardization 0.29, CBR plus source temperature 0.25, and oracle target temperature scaling 0.07, against an in-domain reference of 0.004.">
+        <figcaption><b>Figure 2 &#8212; Calibration collapses off-domain.</b> Target probes sit below the diagonal (confidently wrong). Source-fitted temperature scaling barely helps because the source probe is already calibrated; only oracle target temperature scaling, which needs target labels, substantially improves it.</figcaption>
+      </figure>
+      <figure>
+        <img src="static/images/figE_cbr_labelshift.png" alt="Grouped bar chart of macro-F1 gain over no adaptation for six target class priors, with dots for each of three target datasets. Global target standardization is positive on balanced and mild priors but negative on the clinical peripheral-blood prior at about minus 0.07 and the neutrophil-heavy prior at about minus 0.08, while class-balanced re-standardization stays positive across all six priors with a mean gain of plus 0.059.">
+        <figcaption><b>Figure 3 &#8212; Class priors decide whether adaptation helps.</b> Global target standardization hurts on realistic neutrophil-dominated priors; CBR stays positive across all 18 evaluated target-prior scenario means (bars = mean gain over no adaptation, dots = per target).</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== PROTOCOL ============================== -->
+<section id="protocol">
+  <div class="wrap">
+    <span class="eyebrow">Protocol</span>
+    <h2 class="sec">How the audit is run</h2>
+    <div class="cols">
+      <div>
+        <dl class="deflist">
+          <dt>Frozen-embedding protocol</dt>
+          <dd>Each encoder is frozen and its CLS/pooled features extracted once. We fit source-domain standardization and an L2-regularized logistic probe (and a 1-NN probe) on the source, then evaluate zero-shot on the target acquisition domains. The target is never touched at training time &#8212; that is the deployment situation being modelled.</dd>
+
+          <dt>Domains</dt>
+          <dd>Source: Acevedo (PBC) via BloodMNIST@224, 10,298 WBC images from a CellaVision DM96. Targets: MLL23/Metafer, Matek-LMU/M8, and Raabin (smartphone + Olympus). All evaluation uses the fixed five-class WBC intersection, and the full source&#215;target matrix is run including reverse directions.</dd>
+
+          <dt>Encoders (15, frozen)</dt>
+          <dd>Hematology FMs (DinoBloom-S/B/L, RedDino), pathology FMs (Phikon, Lunit-DINO), general SSL and VLMs (DINOv2-S/B/L, EVA-02, CLIP-B/16, CLIP-L/14, BiomedCLIP), ImageNet-supervised ViT-B and ResNet-50, plus a supervised ResNet-18 trained from scratch as a non-frozen reference. All run at 224&#215;224 for comparability, with a 224-vs-518 resolution check.</dd>
+        </dl>
+      </div>
+      <div>
+        <dl class="deflist">
+          <dt>Metrics</dt>
+          <dd>Macro-F1 as the primary metric, plus Spearman rank correlation between in-domain and target rankings, effective robustness, relative gap, per-class recall, and bootstrap 95% CIs over five source splits. Calibration is reported as ECE, adaptive-ECE, NLL and Brier.</dd>
+
+          <dt>Label-shift evaluation</dt>
+          <dd>Because real differentials are imbalanced, every label-free method is evaluated on the balanced target <em>and</em> on targets resampled to six class priors, including a peripheral-blood-like and a neutrophil-heavy prior. One canonical experiment (15 encoders &#215; 5 source seeds &#215; 3 targets &#215; 6 priors &#215; 25 draws) drives every adaptation number.</dd>
+
+          <dt>Exposure audit</dt>
+          <dd>Pretraining corpora are checked against every evaluation dataset and the overlap reported, rather than assumed absent. A controlled fine-tuning experiment confirms that scanner exposure can selectively lift same-domain transfer in principle.</dd>
+
+          <dt>What CBR does</dt>
+          <dd>Instead of re-standardizing target features with the raw batch mean and standard deviation, CBR uses the mean of the per-pseudo-class means and a pooled within-class standard deviation, so the statistics stop tracking the majority class. Empty pseudo-classes are dropped, singletons contribute to the mean only, and a full collapse falls back to the source standard deviation. Batches of &#8805; 32 cells are recommended.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== GUIDANCE ============================== -->
+<section id="guidance">
+  <div class="wrap">
+    <span class="eyebrow">Guidance</span>
+    <h2 class="sec">What to do with this today</h2>
+    <div class="prose">
+      <p style="color:var(--ink-2)">If you are choosing a frozen encoder for a WBC pipeline, the in-domain leaderboard everyone reports is close to useless for that decision &#8212; all 15 encoders are within 0.017 macro-F1 of each other, and the ordering does not survive a scanner change.</p>
+      <ul class="rules">
+        <li class="dont">
+          <b>Do not pick an encoder on in-domain accuracy.</b>
+          <p>It is saturated, and rank transfer to a shifted scanner is weak from every source domain (median &#961; 0.45, in-domain-best dethroned in 8 of 12 source&#8211;target pairs). Validate on a domain that actually differs from your development scanner.</p>
+        </li>
+        <li class="dont">
+          <b>Do not trust off-domain confidence, and do not expect a source-fitted temperature to travel.</b>
+          <p>ECE goes 0.004 &#8594; 0.35 across a scanner change, and source temperature scaling only moves it to 0.32. Recalibrate per scanner &#8212; 16 to 32 labelled target images gets most of the way to the oracle.</p>
+        </li>
+        <li class="do">
+          <b>Test adaptation under your real class prior, not a balanced split.</b>
+          <p>Global BN-style target standardization and SHOT/IM both look fine on balanced targets and lose 0.07&#8211;0.08 macro-F1 on neutrophil-dominated ones. If your evaluation is balanced and your deployment is not, the evaluation is not measuring the deployment.</p>
+        </li>
+        <li class="do">
+          <b>If you re-standardize at test time, do it class-balanced.</b>
+          <p>CBR is a few lines, needs no labels and no training, and was positive in every evaluated target-prior scenario mean (mean +0.059) &#8212; with 29 of 270 per-encoder cells still negative, so validate it for your encoder before relying on it.</p>
+        </li>
+        <li class="do">
+          <b>State pretraining exposure in the paper.</b>
+          <p>Three of our four public datasets are in DinoBloom's pretraining corpus, which we could only establish by reading the model and dataset papers side by side. Benchmarks that do not report this cannot separate memorization from generalization &#8212; and neither can ours.</p>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== LIMITATIONS ============================== -->
+<section id="limitations">
+  <div class="wrap">
+    <span class="eyebrow">Limitations</span>
+    <h2 class="sec">What this audit does not settle</h2>
+    <div class="cols">
+      <div class="prose">
+        <p><b style="font-family:var(--sans);font-size:15.5px">No leakage-free DinoBloom target.</b> All three transfer targets are in DinoBloom's pretraining corpus and its only held-out dataset is our source, so exposure and domain difficulty stay confounded for that model family. The broader conclusion rests on the other encoders and on every source&#8211;target direction.</p>
+        <p><b style="font-family:var(--sans);font-size:15.5px">Modest power over 15 encoders.</b> An individual Spearman &#961; over 15 points is noisy, so we lean on CI-separated spreads and rank re-ordering rather than on any single correlation, and we describe the effect as scanner-<em>associated</em> cross-dataset shift rather than isolating the scanner itself.</p>
+      </div>
+      <div class="prose">
+        <p><b style="font-family:var(--sans);font-size:15.5px">CBR is transductive and pseudo-label-dependent.</b> It needs a batch of target cells at test time, it recovers about 61% of a true-label oracle, it is noisy below 32 cells, and it is negative in 29 of 270 encoder&#215;scenario cells &#8212; mostly for DinoBloom encoders under extreme skew.</p>
+        <p><b style="font-family:var(--sans);font-size:15.5px">Scope.</b> Five WBC classes, one stain family per dataset, and image-level (not patient-level) splits, because patient identifiers are not consistently available across these public datasets. The in-domain split is used only as a clean-ranking proxy; every deployment claim rests on cross-dataset transfer.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BIBTEX ============================== -->
+<section id="bibtex">
+  <div class="wrap">
+    <span class="eyebrow">Citation</span>
+    <h2 class="sec">BibTeX</h2>
+    <p class="prose" style="color:var(--ink-2)">Accepted as an oral at HemaRAI 2026, a MICCAI 2026 satellite event; the Springer LNCS proceedings entry does not exist yet, so cite it as a workshop presentation for now. This page will switch to the proceedings (and arXiv) entry the day either is live.</p>
+    <div class="bib">
+      <div class="hd">
+        <span>cite this work</span>
+        <button type="button" id="copybib" data-label="Copy">Copy</button>
+      </div>
+<pre id="bibtext">@misc{sharma2026hematologyfm,
+  title        = {Can You Trust Frozen Hematology Foundation Models under Acquisition Shift?},
+  author       = {Sharma, Jai Kumar and Tapadiya, Peeyush},
+  year         = {2026},
+  howpublished = {HemaRAI Workshop at MICCAI 2026},
+  note         = {Workshop oral}
+}</pre>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>&#169; 2026 Jai Kumar Sharma &amp; Peeyush Tapadiya &middot; released under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></p>
+    <p>Contact: <a href="mailto:jaisharma@vt.edu">jaisharma@vt.edu</a></p>
+    <p><a href="https://openreview.net/group?id=MICCAI.org/2026/Workshop/HemaRAI">HemaRAI Workshop @ MICCAI 2026</a></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var btn = document.getElementById('copybib');
+  var src = document.getElementById('bibtext');
+  if (!btn || !src || !navigator.clipboard) { if (btn) { btn.hidden = true; } return; }
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(src.textContent).then(function () {
+      btn.textContent = 'Copied';
+      setTimeout(function () { btn.textContent = btn.dataset.label; }, 1800);
+    }).catch(function () {
+      btn.textContent = 'Select and copy';
+      setTimeout(function () { btn.textContent = btn.dataset.label; }, 1800);
+    });
+  });
+})();
+</script>
+</body>
+</html>
